@@ -1,7 +1,7 @@
-# toypack
-devtools::install_github("scllin/toypack")
+# mrMed
+devtools::install_github("scllin/mrMed")
 
-library(toypack)
+library(mrMed)
 
 
 data(WHR_SMK_CAD)
