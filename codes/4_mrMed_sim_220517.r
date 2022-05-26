@@ -84,9 +84,9 @@ N_Gk <- N_Gx + N_Gm
 seedC <- 1 #changed for another parameter setting 
 
 a_xk <-  c(reproducible_runif(N_Gx,0.1,0.3,1000*seedC)) 
-a_mk <-  c(reproducible_runif(N_Gm,0.1,0.3,3000*seedC))
+b_mk <-  c(reproducible_runif(N_Gm,0.1,0.3,3000*seedC))
 b_xk <-  rep(0,N_Gx)
-b_mk <-  rep(0,N_Gm)
+a_mk <-  rep(0,N_Gm)
 c_xk <-  rep(0,N_Gx)
 c_mk <-  rep(0,N_Gm)
 d_x1k <-  rep(0,N_Gx)
@@ -122,7 +122,7 @@ n_gwasY <- opt$N
 #===Scenarios set-up for S1-S11
 if(opt$pleiotropy==2|opt$pleiotropy==5|opt$pleiotropy==6){
 	b_xk[S_xb] <-  reproducible_runif(leng_1+leng_2,-0.15,0.15,19000*seedC)
-	b_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.15,0.15,20000*seedC)
+	a_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.15,0.15,20000*seedC)
 }
 
 if(opt$pleiotropy==3|opt$pleiotropy==5|opt$pleiotropy==6){
@@ -142,7 +142,7 @@ if(opt$pleiotropy==4|opt$pleiotropy==5|opt$pleiotropy==6){
 
 if(opt$pleiotropy==7|opt$pleiotropy==10|opt$pleiotropy==11){
 	b_xk[S_xb] <-  reproducible_runif(leng_1+leng_2,-0.1,0.2,29000*seedC)
-	b_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.1,0.2,30000*seedC)
+	a_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.1,0.2,30000*seedC)
 }
 
 if(opt$pleiotropy==8|opt$pleiotropy==10|opt$pleiotropy==11){
@@ -197,7 +197,7 @@ for(r in 1:opt$R){
 	U1_gwasX <- (epsilon_gwasX[,1] + G_xk_gwasX%*%d_x1k + G_mk_gwasX%*%d_m1k)
 	U3_gwasX <- (epsilon_gwasX[,3] + G_xk_gwasX%*%d_x3k + G_mk_gwasX%*%d_m3k)
 	Zx_gwasX <- U1_gwasX + U3_gwasX 
-	X <- rnorm(n_gwasX,0,omega) + Zx_gwasX + G_xk_gwasX%*%a_xk + G_mk_gwasX%*%b_mk   #a_Gk contained b_k
+	X <- rnorm(n_gwasX,0,omega) + Zx_gwasX + G_xk_gwasX%*%a_xk + G_mk_gwasX%*%a_mk   #a_Gk contained b_k
 
 	#===generating M
 	#===Gx'
@@ -215,8 +215,8 @@ for(r in 1:opt$R){
 	U3_gwasM <- (epsilon_gwasM[,3] + G_xk_gwasM%*%d_x3k + G_mk_gwasM%*%d_m3k)
 	Zx_gwasM <- U1_gwasM + U3_gwasM 
 	Zm_gwasM <- U1_gwasM + U2_gwasM 	
-	X_gwasM <- rnorm(n_gwasM,0,omega) + Zx_gwasM + G_xk_gwasM%*%a_xk  + G_mk_gwasM%*%b_mk
-	M <- rnorm(n_gwasM,0,omega) + Zm_gwasM + opt$alpha*X_gwasM + G_mk_gwasM%*%a_mk + G_xk_gwasM%*%b_xk
+	X_gwasM <- rnorm(n_gwasM,0,omega) + Zx_gwasM + G_xk_gwasM%*%a_xk  + G_mk_gwasM%*%a_mk
+	M <- rnorm(n_gwasM,0,omega) + Zm_gwasM + opt$alpha*X_gwasM + G_mk_gwasM%*%b_mk + G_xk_gwasM%*%b_xk
 
 	#===generating Y
 	#===Gx'
@@ -235,8 +235,8 @@ for(r in 1:opt$R){
 	Zx_gwasY <- U1_gwasY + U3_gwasY 
 	Zm_gwasY <- U1_gwasY + U2_gwasY
 	Zy_gwasY <- U2_gwasY + U3_gwasY	
-	X_gwasY <- rnorm(n_gwasY,0,omega) + Zx_gwasY + G_xk_gwasY%*%a_xk + G_mk_gwasY%*%b_mk 
-	M_gwasY <- rnorm(n_gwasY,0,omega) + Zm_gwasY + opt$alpha*X_gwasY + G_mk_gwasY%*%a_mk + G_xk_gwasY%*%b_xk 
+	X_gwasY <- rnorm(n_gwasY,0,omega) + Zx_gwasY + G_xk_gwasY%*%a_xk + G_mk_gwasY%*%a_mk 
+	M_gwasY <- rnorm(n_gwasY,0,omega) + Zm_gwasY + opt$alpha*X_gwasY + G_mk_gwasY%*%b_mk + G_xk_gwasY%*%b_xk 
 	Y <- rnorm(n_gwasY,0,omega) + Zy_gwasY + opt$delta*X_gwasY + opt$beta*M_gwasY + G_xk_gwasY%*%c_xk + G_mk_gwasY%*%c_mk
 
 	#===use myGWAS() to generate gwas statistics
@@ -257,7 +257,7 @@ for(r in 1:opt$R){
 
 	#rsq and averaged F-stat of IVs, computing based on sample of Y
 	snpStren[r,1] <- var(G_xk_gwasY[,1:N1_Gx]%*%a_xk[1:N1_Gx] + G_xk_gwasY[,1:N1_Gx]%*%d_x1k[1:N1_Gx] + G_xk_gwasY[,1:N1_Gx]%*%d_x3k[1:N1_Gx])/var(X_gwasY)
-	snpStren[r,2] <- var(G_mk_gwasY[,1:N1_Gm]%*%a_mk[1:N1_Gm] + G_mk_gwasY[,1:N1_Gm]%*%d_m1k[1:N1_Gm] + G_mk_gwasY[,1:N1_Gm]%*%d_m2k[1:N1_Gm])/var(M_gwasY)
+	snpStren[r,2] <- var(G_mk_gwasY[,1:N1_Gm]%*%b_mk[1:N1_Gm] + G_mk_gwasY[,1:N1_Gm]%*%d_m1k[1:N1_Gm] + G_mk_gwasY[,1:N1_Gm]%*%d_m2k[1:N1_Gm])/var(M_gwasY)
 	snpStren[r,3] <- mean((gwasX$beta.X[ctg_Gk$Gx_plum==1]/gwasX$se.X[ctg_Gk$Gx_plum==1])^2)
 	snpStren[r,4] <- mean((gwasM$beta.M[ctg_Gk$Gm_plum==1]/gwasM$se.M[ctg_Gk$Gm_plum==1])^2)	
 	indx <- which(dat_sim$G_mvmr==1)
