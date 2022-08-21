@@ -1,10 +1,13 @@
 library(mrMed)
 
-#Table3 (require certain run time)
-#Table4 (require certain run time)
-#TableS1 (require certain run time)
-#TableS5 (quick)
-#TableS2-S4 (quick)
+setwd("/staging/biology/kk037356/res/mrMed/4_mrMed_realdata")
+
+#output:
+#Table3 
+#Table4
+#TableS1
+#TableS5
+#TableS2-S4
 
 #===Table3: MR-based mediation X:WHR, M:SMK, Y:CAD
 set.seed(100)
@@ -27,7 +30,7 @@ temp <- apply(cbind(round(res1$rho[,c("CI_lower")],3),round(res1$rho[,c("CI_uppe
 temp <- apply(cbind(rep("(",8),temp),1,paste,collapse="")
 temp <- apply(cbind(temp,rep(")",8)),1,paste,collapse="")
 tab3[,4] <- paste0(round(res1$rho[,c("b")],3),temp)
-write.table(tab3,file="table3.csv",sep=",",row.names=FALSE,col.names=FALSE)
+write.table(tab3,file="Table3.csv",sep=",",row.names=FALSE,col.names=FALSE)
 
 #===Table4: MR-based mediation X:WHR, M:T2D, Y:CAD
 set.seed(100)
@@ -50,7 +53,7 @@ temp <- apply(cbind(round(res2$rho[,c("CI_lower")],3),round(res2$rho[,c("CI_uppe
 temp <- apply(cbind(rep("(",8),temp),1,paste,collapse="")
 temp <- apply(cbind(temp,rep(")",8)),1,paste,collapse="")
 tab4[,4] <- paste0(round(res2$rho[,c("b")],3),temp)
-write.table(tab4,file="table4.csv",sep=",",row.names=FALSE,col.names=FALSE)
+write.table(tab4,file="Table4.csv",sep=",",row.names=FALSE,col.names=FALSE)
 
 #===TableS1 MR-based mediation X:WHR, M:T2D(noukb), Y:CAD
 set.seed(100)
@@ -73,7 +76,7 @@ temp <- apply(cbind(round(res3$rho[,c("CI_lower")],3),round(res3$rho[,c("CI_uppe
 temp <- apply(cbind(rep("(",8),temp),1,paste,collapse="")
 temp <- apply(cbind(temp,rep(")",8)),1,paste,collapse="")
 tabS1[,4] <- paste0(round(res3$rho[,c("b")],3),temp)
-write.table(tabS1,file="tableS1.csv",sep=",",row.names=FALSE,col.names=FALSE)
+write.table(tabS1,file="TableS1.csv",sep=",",row.names=FALSE,col.names=FALSE)
 
 
 
@@ -115,6 +118,7 @@ Fstat[5:6,2] <- as.numeric(strength_mvmr(r_input, 0))
 colnames(Fstat) <- c("meanF","condi_F")
 
 round(Fstat,1)
+write.table(Fstat,file="TableS5.csv",sep=",",row.names=FALSE,col.names=FALSE)
 
 
 
@@ -182,6 +186,8 @@ mrMtoY_Gm_plum <- mr(dat_MtoY[dat_MtoY$Gm_plum==1,],method_list=c("mr_ivw","mr_e
 tabS2[5,3] <- mrMtoY_Gm_plum$nsnp[1] 
 tabS2[6:8,3] <- apply(cbind(apply(cbind(round(mrMtoY_Gm_plum$b,2),rep("(",3),round(mrMtoY_Gm_plum$b-z*mrMtoY_Gm_plum$se,2),",",round(mrMtoY_Gm_plum$b+z*mrMtoY_Gm_plum$se,2)),1,paste,collapse=""),rep(")",3)),1,paste,collapse="")
 
+write.table(tabS2,file="TableS2.csv",sep=",",row.names=FALSE,col.names=FALSE)
+
 
 
 #===TableS3 
@@ -246,6 +252,8 @@ tabS3[2:4,3] <- apply(cbind(apply(cbind(round(mrMtoY_Gx$b,2),rep("(",3),round(mr
 mrMtoY_Gm_plum <- mr(dat_MtoY[dat_MtoY$Gm_plum==1,],method_list=c("mr_ivw","mr_egger_regression","mr_weighted_median"))	
 tabS3[5,3] <- mrMtoY_Gm_plum$nsnp[1] 
 tabS3[6:8,3] <- apply(cbind(apply(cbind(round(mrMtoY_Gm_plum$b,2),rep("(",3),round(mrMtoY_Gm_plum$b-z*mrMtoY_Gm_plum$se,2),",",round(mrMtoY_Gm_plum$b+z*mrMtoY_Gm_plum$se,2)),1,paste,collapse=""),rep(")",3)),1,paste,collapse="")
+
+write.table(tabS3,file="TableS3.csv",sep=",",row.names=FALSE,col.names=FALSE)
 
 
 
@@ -314,6 +322,4 @@ tabS4[5,3] <- mrMtoY_Gm_plum$nsnp[1]
 tabS4[6:8,3] <- apply(cbind(apply(cbind(round(mrMtoY_Gm_plum$b,2),rep("(",3),round(mrMtoY_Gm_plum$b-z*mrMtoY_Gm_plum$se,2),",",round(mrMtoY_Gm_plum$b+z*mrMtoY_Gm_plum$se,2)),1,paste,collapse=""),rep(")",3)),1,paste,collapse="")
 
 
-
-
-
+write.table(tabS4,file="TableS4.csv",sep=",",row.names=FALSE,col.names=FALSE)
