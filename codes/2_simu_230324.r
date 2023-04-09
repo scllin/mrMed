@@ -1,3 +1,4 @@
+rm(list=ls())
 library(mrMed)
 library(optparse)
 library(mvtnorm)
@@ -38,7 +39,6 @@ rcorrbinom <- function(n, prob1, prob2,corr){
 	temp_t2 <- tri[sample(x=1:length(tri),size=n,prob=c(P00,P01,P10,P11),replace=TRUE)]
 	t2 <- t(matrix(unlist(temp_t2),2,n))
 	t_12 <- t1+t2
-
 	return(t_12)
 }
 
@@ -46,17 +46,19 @@ myGWAS <- function(XMY,Gk_XMY){
 
 	XMY_dmean <- XMY - mean(XMY)
 	Gk_XMY_dmean <- sapply(1:dim(Gk_XMY)[2], function(j){Gk_XMY[,j]-mean(Gk_XMY[,j])})
-
-
 	beta_XMY <- cov(Gk_XMY_dmean,XMY_dmean)/apply(Gk_XMY_dmean,2,var)
-
 	se_XMY <- sapply(1:dim(Gk_XMY)[2],function(j){sqrt(sum((XMY_dmean-beta_XMY[j]*Gk_XMY_dmean[,j])^2)/(dim(Gk_XMY)[1]-2))})/sqrt(apply(Gk_XMY_dmean^2,2,sum))
-
 	pval_XMY <- 2*pt(-abs(beta_XMY/se_XMY),dim(Gk_XMY)[1]-2)
-
 	return(data.frame(beta_XMY=beta_XMY,se_XMY=se_XMY,pval_XMY=pval_XMY))
 	}
 
+
+myGWASbi <- function(XMY,Gk_XMY){
+	a=dim(Gk_XMY)[2]
+	temp <- data.frame(beta_XMY=array(0,a),se_XMY=array(0,a),pval_XMY=array(0,a))
+	for(k in 1:a){temp[k,] <- summary(glm(XMY~Gk_XMY[,k],family=binomial(link="logit")))$coefficients[2,c(1,2,4)]}
+	return(temp)
+	}
 
 #=====================================#
 #==========simulation set-up==========#
@@ -69,7 +71,8 @@ option_list <- list(
   make_option("--alpha", type="numeric", default=0.3, help="effect of X on M"),
   make_option("--beta", type="numeric", default=0.3, help="effect of M on Y"),
   make_option("--delta", type="numeric", default=0.21, help="effect of X on Y after controlling M"),
-  make_option("--pleiotropy", type="integer", default=1, help="S1-S11")
+  make_option("--pleiotropy", type="integer", default=11, help="S1-S11"),
+  make_option("--version", type="character", default="230324_bi", help="version")
 )
 parser <- OptionParser(usage = "%prog [options]", option_list=option_list)
 opt <- parse_args(parser)
@@ -83,8 +86,8 @@ N_Gk <- N_Gx + N_Gm
 #===fixed parameters
 seedC <- 1 #changed for another parameter setting 
 
-a_xk <-  c(reproducible_runif(N_Gx,0.1,0.3,1000*seedC)) 
-b_mk <-  c(reproducible_runif(N_Gm,0.1,0.3,3000*seedC))
+a_xk <-  c(reproducible_runif(N_Gx,0.1/5,0.3/5,1000*seedC)) 
+b_mk <-  c(reproducible_runif(N_Gm,0.1/5,0.3/5,3000*seedC))
 b_xk <-  rep(0,N_Gx)
 a_mk <-  rep(0,N_Gm)
 c_xk <-  rep(0,N_Gx)
@@ -96,8 +99,8 @@ d_m1k <-  rep(0,N_Gm)
 d_m2k <-  rep(0,N_Gm)
 d_m3k <-  rep(0,N_Gm)
 
-omega <- 5 #random error std
-Sig <- matrix(c(3,1,2,1,3,1,2,1,3), ncol=3) #cov matrix for U1, U2, U3 (vars affected by confounders)
+omega <- 5/5 #random error std
+Sig <- matrix(c(3,1,2,1,3,1,2,1,3)/5^2, ncol=3) #cov matrix for U1, U2, U3 (vars affected by confounders)
 
 #===selected pleiotropy SNPs
 leng_1 <- N1_Gx/5; leng_2 <- N2_Gx/5
@@ -111,7 +114,7 @@ S_md  <- c(reproducible_sample(1:N1_Gm,leng_3,15000*seedC),reproducible_sample((
 
 #===allele freq
 p_Gx <- reproducible_runif(N_Gx,0.3,0.7,17000*seedC)
-p_Gm <- reproducible_runif(N_Gm,0.3,0.7,18000*seedC)
+p_Gm <- c(reproducible_runif(N1_Gm,0.3,0.7,18000*seedC),p_Gx[N1_Gx+1:N2_Gx]) #force the last correlated SNPs having same frq as Gx
 p_Gk <- c(p_Gx,p_Gm)
 
 #===sample size
@@ -121,43 +124,43 @@ n_gwasY <- opt$N
 
 #===Scenarios set-up for S1-S11
 if(opt$pleiotropy==2|opt$pleiotropy==5|opt$pleiotropy==6){
-	b_xk[S_xb] <-  reproducible_runif(leng_1+leng_2,-0.15,0.15,19000*seedC)
-	a_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.15,0.15,20000*seedC)
+	b_xk[S_xb] <-  reproducible_runif(leng_1+leng_2,-0.15/5,0.15/5,19000*seedC)
+	a_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.15/5,0.15/5,20000*seedC)
 }
 
 if(opt$pleiotropy==3|opt$pleiotropy==5|opt$pleiotropy==6){
-	c_xk[S_xc] <- reproducible_runif(leng_1+leng_2,-0.15,0.15,21000*seedC)
-	c_mk[S_mc] <- reproducible_runif(leng_3+leng_4,-0.15,0.15,22000*seedC)
+	c_xk[S_xc] <- reproducible_runif(leng_1+leng_2,-0.15/5,0.15/5,21000*seedC)
+	c_mk[S_mc] <- reproducible_runif(leng_3+leng_4,-0.15/5,0.15/5,22000*seedC)
 }
 
 if(opt$pleiotropy==4|opt$pleiotropy==5|opt$pleiotropy==6){
-	d_x1k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.15,0.15,23000*seedC)
-	d_x2k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.15,0.15,24000*seedC)
-	d_x3k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.15,0.15,25000*seedC)
+	d_x1k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.15/5,0.15/5,23000*seedC)
+	d_x2k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.15/5,0.15/5,24000*seedC)
+	d_x3k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.15/5,0.15/5,25000*seedC)
 
-	d_m1k[S_md] <- reproducible_runif(leng_3+leng_4,-0.15,0.15,26000*seedC)
-	d_m2k[S_md] <- reproducible_runif(leng_3+leng_4,-0.15,0.15,27000*seedC)
-	d_m3k[S_md] <- reproducible_runif(leng_3+leng_4,-0.15,0.15,28000*seedC)	
+	d_m1k[S_md] <- reproducible_runif(leng_3+leng_4,-0.15/5,0.15/5,26000*seedC)
+	d_m2k[S_md] <- reproducible_runif(leng_3+leng_4,-0.15/5,0.15/5,27000*seedC)
+	d_m3k[S_md] <- reproducible_runif(leng_3+leng_4,-0.15/5,0.15/5,28000*seedC)	
 }
 
 if(opt$pleiotropy==7|opt$pleiotropy==10|opt$pleiotropy==11){
-	b_xk[S_xb] <-  reproducible_runif(leng_1+leng_2,-0.1,0.2,29000*seedC)
-	a_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.1,0.2,30000*seedC)
+	b_xk[S_xb] <-  reproducible_runif(leng_1+leng_2,-0.1/5,0.2/5,29000*seedC)
+	a_mk[S_mb] <-  reproducible_runif(leng_3+leng_4,-0.1/5,0.2/5,30000*seedC)
 }
 
 if(opt$pleiotropy==8|opt$pleiotropy==10|opt$pleiotropy==11){
-	c_xk[S_xc] <- reproducible_runif(leng_1+leng_2,-0.1,0.2,31000*seedC)
-	c_mk[S_mc] <- reproducible_runif(leng_3+leng_4,-0.1,0.2,32000*seedC)
+	c_xk[S_xc] <- reproducible_runif(leng_1+leng_2,-0.1/5,0.2/5,31000*seedC)
+	c_mk[S_mc] <- reproducible_runif(leng_3+leng_4,-0.1/5,0.2/5,32000*seedC)
 }
 
 if(opt$pleiotropy==9|opt$pleiotropy==10|opt$pleiotropy==11){
-	d_x1k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.1,0.2,33000*seedC)
-	d_x2k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.1,0.2,34000*seedC)
-	d_x3k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.1,0.2,35000*seedC)
+	d_x1k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.1/5,0.2/5,33000*seedC)
+	d_x2k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.1/5,0.2/5,34000*seedC)
+	d_x3k[S_xd] <- reproducible_runif(leng_1+leng_2,-0.1/5,0.2/5,35000*seedC)
 
-	d_m1k[S_md] <- reproducible_runif(leng_3+leng_4,-0.1,0.2,36000*seedC)
-	d_m2k[S_md] <- reproducible_runif(leng_3+leng_4,-0.1,0.2,37000*seedC)
-	d_m3k[S_md] <- reproducible_runif(leng_3+leng_4,-0.1,0.2,38000*seedC)		
+	d_m1k[S_md] <- reproducible_runif(leng_3+leng_4,-0.1/5,0.2/5,36000*seedC)
+	d_m2k[S_md] <- reproducible_runif(leng_3+leng_4,-0.1/5,0.2/5,37000*seedC)
+	d_m3k[S_md] <- reproducible_runif(leng_3+leng_4,-0.1/5,0.2/5,38000*seedC)		
 }
 
 #===Pseudo GWAS data frame
@@ -179,7 +182,9 @@ names(gwasY) <- gsub("X","Y",names(gwasX))
 set.seed(1000)  #fixed seed for simulation
 mylist <- list()
 runtimelist <- list()
-snpStren <- array(0,c(opt$R,6)) #SNPs strength 
+snpStren <- array(0,c(opt$R,7)) #SNPs strength + P(Y=1)
+
+
 
 for(r in 1:opt$R){
 
@@ -191,7 +196,7 @@ for(r in 1:opt$R){
 	G_mk_gwasX <- array(0, c(n_gwasX,N_Gm))
 	for(i in 1:N1_Gm){G_mk_gwasX[,i] <- rbinom(n_gwasX, 2, p_Gm[i])}
 	#===paired variables for Gx/Gx' Gm/Gm'
-	for(i in (N1_Gx+1):(N1_Gx+N2_Gx)){tmp <- rcorrbinom(n_gwasX,prob1=p_Gx[i],prob2=p_Gm[i],corr=0.3);G_xk_gwasX[,i]<-tmp[,1];G_mk_gwasX[,i]<-tmp[,2]}
+	for(i in (N1_Gx+1):(N1_Gx+N2_Gx)){tmp <- rcorrbinom(n_gwasX,prob1=p_Gx[i],prob2=p_Gm[i],corr=0.5);G_xk_gwasX[,i]<-tmp[,1];G_mk_gwasX[,i]<-tmp[,2]}
 
 	epsilon_gwasX <- rmvnorm(n=n_gwasX, mean=c(0,0,0), sigma=Sig)
 	U1_gwasX <- (epsilon_gwasX[,1] + G_xk_gwasX%*%d_x1k + G_mk_gwasX%*%d_m1k)
@@ -207,7 +212,7 @@ for(r in 1:opt$R){
 	G_mk_gwasM <- array(0, c(n_gwasM,N_Gm))
 	for(i in 1:N1_Gm){G_mk_gwasM[,i] <- rbinom(n_gwasM, 2, p_Gm[i])}
 	#===paired variables for Gx/Gx' Gm/Gm'
-	for(i in (N1_Gx+1):(N1_Gx+N2_Gx)){tmp <- rcorrbinom(n_gwasM,prob1=p_Gx[i],prob2=p_Gm[i],corr=0.3);G_xk_gwasM[,i]<-tmp[,1];G_mk_gwasM[,i]<-tmp[,2]}
+	for(i in (N1_Gx+1):(N1_Gx+N2_Gx)){tmp <- rcorrbinom(n_gwasM,prob1=p_Gx[i],prob2=p_Gm[i],corr=0.5);G_xk_gwasM[,i]<-tmp[,1];G_mk_gwasM[,i]<-tmp[,2]}
 
 	epsilon_gwasM <- rmvnorm(n=n_gwasM, mean=c(0,0,0), sigma=Sig)
 	U1_gwasM <- (epsilon_gwasM[,1] + G_xk_gwasM%*%d_x1k + G_mk_gwasM%*%d_m1k)
@@ -220,13 +225,15 @@ for(r in 1:opt$R){
 
 	#===generating Y
 	#===Gx'
+	if(strsplit(opt$version,"_")[[1]][2]=="bi"){n_gwasY=1500000} #boost large size and select enough ncase in gwas (relaity mimic)
+	
 	G_xk_gwasY <- array(0, c(n_gwasY,N_Gx))
 	for(i in 1:N1_Gx){G_xk_gwasY[,i] <- rbinom(n_gwasY, 2, p_Gx[i])}
 	#===Gm'
 	G_mk_gwasY <- array(0, c(n_gwasY,N_Gm))
 	for(i in 1:N1_Gx){G_mk_gwasY[,i] <- rbinom(n_gwasY, 2, p_Gm[i])}
 	#===paired variables for Gx/Gx' Gm/Gm'
-	for(i in (N1_Gx+1):(N1_Gx+N2_Gx)){tmp <- rcorrbinom(n_gwasY,prob1=p_Gx[i],prob2=p_Gm[i],corr=0.3);G_xk_gwasY[,i]<-tmp[,1];G_mk_gwasY[,i]<-tmp[,2]}
+	for(i in (N1_Gx+1):(N1_Gx+N2_Gx)){tmp <- rcorrbinom(n_gwasY,prob1=p_Gx[i],prob2=p_Gm[i],corr=0.5);G_xk_gwasY[,i]<-tmp[,1];G_mk_gwasY[,i]<-tmp[,2]}
 	
 	epsilon_gwasY <- rmvnorm(n=n_gwasY, mean=c(0,0,0), sigma=Sig)
 	U1_gwasY <- (epsilon_gwasY[,1] + G_xk_gwasY%*%d_x1k + G_mk_gwasY%*%d_m1k )
@@ -239,6 +246,17 @@ for(r in 1:opt$R){
 	M_gwasY <- rnorm(n_gwasY,0,omega) + Zm_gwasY + opt$alpha*X_gwasY + G_mk_gwasY%*%b_mk + G_xk_gwasY%*%b_xk 
 	Y <- rnorm(n_gwasY,0,omega) + Zy_gwasY + opt$delta*X_gwasY + opt$beta*M_gwasY + G_xk_gwasY%*%c_xk + G_mk_gwasY%*%c_mk
 
+	if(strsplit(opt$version,"_")[[1]][2]=="bi"){
+		cst=c(6.2,6.2,6.2,5.9,6,6,6.3,6.5,7.2,7.6,7.6)
+		Y <- -cst[opt$pleiotropy]+Y 	#constant to control pr(Y=1)
+		snpStren[r,7] <- mean(1/(1+exp(-Y)))
+		Y <- rbinom(length(Y),1,1/(1+exp(-Y))) #binary TY based on logistic
+		indx <- c(sample(which(Y==0),opt$N*5/8,replace=FALSE),sample(which(Y==1),opt$N*3/8,replace=FALSE))
+		G_mk_gwasY <- G_mk_gwasY[indx,]
+		G_xk_gwasY <- G_xk_gwasY[indx,]
+		Y <- Y[indx]
+	}
+
 	#===use myGWAS() to generate gwas statistics
 	Gk_X <- cbind(G_xk_gwasX,G_mk_gwasX)
 	Gk_M <- cbind(G_xk_gwasM,G_mk_gwasM)
@@ -249,7 +267,14 @@ for(r in 1:opt$R){
 		gwasX[,c("beta.X","se.X","pval.X")] <- myGWAS(X_gwasM,Gk_M)
 	}
 	gwasM[,c("beta.M","se.M","pval.M")] <- myGWAS(M,Gk_M)
-	gwasY[,c("beta.Y","se.Y","pval.Y")] <- myGWAS(Y,Gk_Y)
+	#gwasY[,c("beta.Y","se.Y","pval.Y")] <- myGWAS(Y,Gk_Y)
+	if(strsplit(opt$version,"_")[[1]][2]=="bi"){
+		gwasY[,c("beta.Y","se.Y","pval.Y")] <- myGWASbi(Y,Gk_Y)
+	}else{
+		gwasY[,c("beta.Y","se.Y","pval.Y")] <- myGWAS(Y,Gk_Y)
+	}
+
+
 
 	#===categorize the IVs: Gx Gx' Gm Gm'
 	ctg_Gk <- data.frame(SNP=gwasX$SNP,Gx=c(rep(1,N_Gx),rep(0,N_Gm)),Gx_plum=c(rep(1,N1_Gx),rep(0,N2_Gx+N_Gm)),Gm_plum=c(rep(0,N_Gx),rep(1,N1_Gm),rep(0,N2_Gm)),G_mvmr=c(rep(1,N1_Gx),rep(0,N2_Gx),rep(1,N1_Gm),rep(0,N2_Gm)))
@@ -269,12 +294,13 @@ for(r in 1:opt$R){
 	cF <- strength_mvmr(r_input, 0)
 	snpStren[r,5] <- cF[[1]]
 	snpStren[r,6] <- cF[[2]]
-	colnames(snpStren)<- c("r2.SNP.X","r2.SNP.M","F.X","F.M","cF.X","cF.M")
+	colnames(snpStren)<- c("r2.SNP.X","r2.SNP.M","F.X","F.M","cF.X","cF.M","Pr(case)")
 
 	method_list=c("Diff_IVW_0","Diff_IVW","Diff_Egger","Diff_Median","Prod_IVW_0","Prod_IVW","Prod_Egger","Prod_Median")
 	mylist[[r]] <- mrMed(dat_sim,method_list)
 
-}
+} 
+
 
 
 #==================#
@@ -315,6 +341,11 @@ table_ci[,8] <- Reduce("+", lapply(lapply(lapply(mylist, "[[", c("rho")),functio
 snpStat <- t(apply(snpStren,2,mean))
 
 
+Dir <- paste0("/staging/biology/kk037356/res/mrMed/2_simu/",opt$version)
+ifelse(!dir.exists(Dir), dir.create(Dir), FALSE)
+setwd(Dir)
+
+saveRDS(mylist, file=paste0("mylist_",opt$alpha,"alpha_",opt$beta,"beta_",opt$delta,"delta_S",opt$plei,".rdata"))
 write.table(table_mse,file=paste("table_mse_",opt$alpha,"alpha_",opt$beta,"beta_",opt$delta,"delta_S",opt$plei,".csv",sep=""),sep=",",row.names=FALSE,col.names=FALSE)
 write.table(table_ci,file=paste("table_ci_",opt$alpha,"alpha_",opt$beta,"beta_",opt$delta,"delta_S",opt$plei,".csv",sep=""),sep=",",row.names=FALSE,col.names=FALSE)
 write.table(snpStat,file=paste("table_snpStren_",opt$alpha,"alpha_",opt$beta,"beta_",opt$delta,"delta_S",opt$plei,".csv",sep=""),sep=",",row.names=FALSE)
